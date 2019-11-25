@@ -11,7 +11,7 @@ from util.general_utils import *
 
 class tabular_env(object):
     """test tabular environment that has same api's as gym"""
-    def __init__(self, grid_size=(4,4)):
+    def __init__(self, grid_size=(5, 5)):
         self.grid_size = grid_size
         self.num_actions = 4
         self.num_rows = self.grid_size[0]
@@ -30,7 +30,7 @@ class tabular_env(object):
         """ special environment design """
         # self.A = [(1,1)]
         # self.B = [(1,3)]
-        self.A = [(1,1)]
+        self.A = [(1, 1)]
         self.B = []
 
     def reset(self):

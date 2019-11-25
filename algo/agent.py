@@ -81,6 +81,8 @@ class gaussian_ocbo_agent(agent):
         post_sample = np.zeros_like(np.array(self.q_fn))
         for s in range(self.num_states):
             for a in range(self.num_actions):
+                """ self.posterior[s,a,0] is the mean,
+                    self.posterior[s,a,1] is the std of the gaussian """
                 sa_sample = normal(self.posterior[s, a, 0],
                                         self.posterior[s, a, 1])
                 post_sample[s, a] = sa_sample
@@ -96,10 +98,12 @@ class gaussian_ocbo_agent(agent):
         next_a = next_sa_idx % self.num_actions
         assert(np.max(improvement)==improvement[next_s, next_a])
 
+        # import pdb; pdb.set_trace()
+
         ### DEBUG PRINT
-        # print('Posterior')
-        # print(self.posterior)
-        # print(DIVIDE)
+        print('Posterior')
+        print(self.posterior)
+        print(DIVIDE)
         print('Post Sample')
         print(post_sample)
         print(DIVIDE)

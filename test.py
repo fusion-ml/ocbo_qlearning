@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import argparse
 from env.tabular_env import *
 from algo.agent import gaussian_ocbo_agent
@@ -20,10 +21,17 @@ def parse_args():
                         default=0.1, help="Epsilon greedy param.")
     parser.add_argument('--batch_size', type=int,
                         default=20, help="Number of transitions to train on")
+    parser.add_argument('--seed', type=int,
+                        default=1234, help="Set random seed")
+    parser.add_argument('--grid_rows', type=int,
+                        default=5, help="Num rows in env")
+    parser.add_argument('--grid_cols', type=int,
+                        default=5, help="Num cols in env")
     args = parser.parse_args()
     return args
 
 def main():
+
     """ parse arguments """
     args = parse_args()
     num_ep = args.num_ep
@@ -33,18 +41,23 @@ def main():
     gamma = args.gamma
     eps = args.eps
     batch_size = args.batch_size
+    seed = args.seed
+    np.random.seed(seed)
+    random.seed(seed)
 
-    env = tabular_env()
+    import pdb; pdb.set_trace()
+    """ make environment and agent """
+    env = tabular_env((args.grid_rows, args.grid_cols))
     agent = gaussian_ocbo_agent(env, alpha, eps)
 
     state = env.reset()
     action = None
 
+    import pdb; pdb.set_trace()
     for ep_idx in range(num_ep):
         if 'ocbo' in agent.id:
             orig_state_idx, orig_action = agent.ocbo_selection()
             orig_state = env.idx_to_state(orig_state_idx)
-
             action = orig_action
             env.curr_state = orig_state
             print('EP {}: OCBO reset initial state to {}, action to {}'.format(
@@ -55,6 +68,7 @@ def main():
         curr_ep_states = [orig_state]
         curr_ep_actions = [orig_action]
         curr_ep_rewards = []
+        curr_ep_done = []
         # curr_gamma = 1
         done = False
         curr_ep_steps = 0
@@ -70,10 +84,11 @@ def main():
             curr_ep_steps+=1
             curr_ep_rewards.append(reward)
             # curr_gamma *= gamma
+            curr_ep_states.append(ns)
+            curr_ep_done.append(done)
             if (curr_ep_steps >= max_steps) or done:
                 break
             action = int(agent.get_policy_action(env.state_to_idx(ns)))
-            curr_ep_states.append(ns)
             curr_ep_actions.append(action)
         print(curr_ep_rewards)
         """ just completed playing a single episode """
@@ -119,18 +134,22 @@ def main():
         # """ END: update q_fn based on batch from replay buffer """
 
         """ BEGIN: update q_fn based on current episode trajectory """
-
-        # import pdb; pdb.set_trace()
-        for i in range(len(curr_ep_states)-1):
+        import pdb; pdb.set_trace()
+        curr_ep_len = len(curr_ep_actions)
+        for i in range(curr_ep_len):
             s = curr_ep_states[i]
-            ns = curr_ep_states[i+1]
+            if curr_ep_len == 1:
+                ns = None
+            else:
+                ns = curr_ep_states[i + 1]
             a = curr_ep_actions[i]
             r = curr_ep_rewards[i]
+            d = curr_ep_done[i]
 
             s_idx = env.state_to_idx(s)
-            ns_idx = env.state_to_idx(ns)
+            ns_idx = env.state_to_idx(ns) if ns is not None else None
             state_best_obs = np.max(agent.best_obs[s_idx])
-            if done:
+            if d:
                 end_r = r
             else:
                 end_r = r + gamma*np.max(agent.q_fn[ns_idx])
@@ -139,13 +158,17 @@ def main():
                 agent.best_obs[s_idx].fill(end_r)
                 # for i in range(len(agent.best_obs[s_idx])):
                 #     agent.best_obs[s_idx][i] = r
-            agent.update_q_fn(s_idx, a, r)
+            agent.update_q_fn(s_idx, a, end_r)
         """ END: update q_fn based on current episode trajectory """
 
-
+        old_policy = np.copy(agent.policy)
         agent.update_policy()
+        new_policy = agent.policy
 
-    import pdb; pdb.set_trace()
+        # if np.sum(old_policy-new_policy)==0: break
+
+
     agent.print_policy()
+
 if __name__=='__main__':
     main()
