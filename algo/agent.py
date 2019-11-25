@@ -28,14 +28,52 @@ class agent(object):
         for state_idx in range(self.num_states):
             self.policy[state_idx] = np.argmax(self.q_fn[state_idx])
 
+    def print_policy(self):
+        s_counter = 0
+        temp_actions = []
+        for s in self.policy:
+            temp_actions.append(self.env.action_labels[s])
+            s_counter += 1
+            if (s_counter % self.env.num_cols) == 0:
+                print(temp_actions)
+                temp_actions = []
+
+class q_learning_agent(agent):
+    def __init__(self, env, alpha, eps):
+        super(q_learning_agent, self).__init__(env)
+        self.id = 'vanilla_q'
+        self.alpha = alpha
+        self.eps = eps
+
+
+        self.init_q_fn()
+        self.update_policy()
+
+    def init_q_fn(self):
+        self.q_fn.fill(0.0)
+
+    def get_policy_action(self, state):
+        if np.random.rand() < self.eps:
+            return np.random.choice(self.num_actions, 1)[0]
+        return self.policy[state]
+
+    def update_q_fn(self, state, action, obs):
+        num_obs = 1
+        sum_obs = np.sum(obs)
+        mean_obs = sum_obs/num_obs
+
+        orig_q = self.q_fn[state][action]
+        self.q_fn[state][action] = orig_q + self.alpha*(mean_obs - orig_q)
+
+
 
 class gaussian_ocbo_agent(agent):
-    def __init__(self, env, alpha, eps):
+    def __init__(self, env, alpha, eps, prior_std, like_std):
         super(gaussian_ocbo_agent, self).__init__(env)
         self.id = 'gaussian_ocbo'
         """ initial prior """
         self.init_mean = 0.0
-        self.init_std = 0.05
+        self.init_std = prior_std
 
         self.alpha = alpha
         self.eps = eps
@@ -50,7 +88,7 @@ class gaussian_ocbo_agent(agent):
         #               for _ in range(self.num_states)])
 
         """ assume we know the likelihood std = 0.5 """
-        self.like_std = 0.5
+        self.like_std = like_std
 
         """ best observed values of mean of q for each state """
         # self.best_obs = [0 for _ in range(self.num_states*self.num_actions)]
@@ -130,21 +168,12 @@ class gaussian_ocbo_agent(agent):
         num_obs = 1
         sum_obs = np.sum(obs)
         mean_obs = sum_obs/num_obs
-        new_std = 1/((1/(old_std**2+1e-10))+(num_obs/(self.like_std**2+1e-10)))
-        new_mean = new_std*((old_mean/(old_std**2+1e-10)) + (sum_obs/(self.like_std**2+1e-10)))
+        new_var = 1/((1/(old_std**2+1e-10))+(num_obs/(self.like_std**2+1e-10)))
+        new_mean = new_var*((old_mean/(old_std**2+1e-10)) + (sum_obs/(self.like_std**2+1e-10)))
+        new_std = np.sqrt(new_var)
         # new_mean = (1/((1/old_std**2)+(num_obs/self.like_std**2))) * ((old_mean/old_std**2) + (sum_obs/self.like_std**2))
 
         self.posterior[state, action] = [new_mean, new_std]
 
         orig_q = self.q_fn[state][action]
         self.q_fn[state][action] = orig_q + self.alpha*(mean_obs - orig_q)
-
-    def print_policy(self):
-        s_counter = 0
-        temp_actions = []
-        for s in self.policy:
-            temp_actions.append(self.env.action_labels[s])
-            s_counter += 1
-            if (s_counter % self.env.num_cols) == 0:
-                print(temp_actions)
-                temp_actions = []

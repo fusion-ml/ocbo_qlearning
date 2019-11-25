@@ -20,14 +20,16 @@ def main():
     post = [args.init_mu, args.init_std]
     like = [args.init_like_mu, args.like_std]
 
+    print('Initial posterior: mean {}, std {}'.format(post[0], post[1]))
+    print('Initial likelihood: mean {}, std {}'.format(like[0], like[1]))
     obs = input()
-    while obs.isnumeric():
+    while obs.strip('+-').isnumeric():
         obs = float(obs)
         print('Obs received:{}'.format(obs))
-        new_std = 1/((1/(post[1]**2))+(1/(like[1]**2)))
-        new_mean = new_std*((post[0]/(post[1]**2)) + (obs/(like[1]**2)))
-        post = [new_mean, new_std]
-        print('New posterior: mean {}, std {}'.format(new_mean, new_std))
+        new_var = 1/((1/(post[1]**2)) + (1/(like[1]**2)))
+        new_mean = new_var*((post[0]/(post[1]**2)) + (obs/(like[1]**2)))
+        post = [new_mean, np.sqrt(new_var)]
+        print('New posterior: mean {}, std {}'.format(post[0], post[1]))
         obs = input()
 
 if __name__=='__main__':
